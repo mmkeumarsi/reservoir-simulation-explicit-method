@@ -1,0 +1,288 @@
+clc;
+clear;
+close all ;
+% firt we make the grids of reservoir by describing the properties of each
+% gris by stracture (s) and repeat it for ten grids in each time step as grid cell
+% aray in the end in 30 diffirent time step repeat A as ' time' cell array 
+s.p=[];
+s.sw=[];
+s.landaw=[];
+s.landao=[];
+s.dpc=[];
+s.pc=[];
+N=300;
+grid=repmat(s,10,1);
+time=repmat(grid,N,1);
+for m=1:10
+    time(m).sw=0.161;
+    time(m).p=1000;                  %%%%%%%%%   initial condition  %%%%%%%%%%
+    time(m).landaw=0;
+    time(m).landao=1;
+    time(m).dpc=-5;              % as the pc-sw table is given the derivation of pc/sw estimated 
+    time(m).pc=0.9;
+end
+pi=1000;
+% length of reservoir is 1500 ft so we discretize it to ten grids by 150 ft
+% length for each grid and the aria is 10000 ft^2
+x=150;  %FT
+A=10000; % FT^2
+K=300; % MD
+pl=1000;
+pr=999;
+fi=0.2;
+B=1; % BO=BW=1Rb/STB
+mu=1; % mu o = mu w = 1 cp 
+QW=95;% rate of water injection in first grid is 95 stb/day 
+QO =75; % rate of oil production in seventh grid is 75 stb/day 
+table1=[0.16 0 1 0 1;0.2 0.01 0.7 0.01 0.7;0.3 0.035 0.325 0.035 0.325;0.4 0.06 0.14 0.06 0.14; 0.5 0.11 0.045 0.11 0.045 ;0.6 0.16 0.031 0.16 0.031 ; 0.7 0.240 0.015 0.240 0.015 ; 0.8 0.420 0.0 0.420 0 ];    %sw-krw-kro-landaw-landao-matrix
+table2=[0.16 0.9 -7.3 ;0.2 0.7 -5;0.3 0.5 -2 ;0.4 0.4 -1; 0.5 0.3 -1 ;0.6 0.22 -0.8; 0.7 0.17 -0.5 ;0.8 -0.2 -37];
+    a=[];
+    b=[];
+    c=[];
+    d=[];
+    txo1=[];
+    txo0=[];
+    txw1=[];
+    txw0=[];
+    cswo=[];
+    csww=[];
+    cpoo=[];
+    cpow=[];
+    delta = 300/N; %% we consider each time step is 5 day and it takes 60 time step from 0 till 300
+    qw=(-950*5.61)/(10000*150);                             % in the first grid we inject water 95 stb/day snd its a boundry condition type  
+    qo=(700*5.61)/(10000*150);                              % in the seventhe grid we produce oil by 75 stb/day 
+    
+for i=1:(N-1)
+    for k=1:10
+        n=(i-1)*10+k;
+        if k==1
+             if (time(n).p)> (time(n+1).p)
+                txo1(k)=K*time(n).landao/x^2;        % transmsibility factor of oil  at i+1/2 by upstreaming selection for landao
+                txo0(k)=2*K*time(n).landao/x^2 ;         % transmsibility factor at i-1/2 by upstreaming selection for landao 
+                txw1(k)=K*time(n).landaw/x^2;
+                txw0(k)=2*K*time(n).landaw/x^2 ;
+             else 
+                txo1(k)=K*time(n+1).landao/x^2;        % transmsibility factor of oil  at i+1/2 by upstreaming selection for landao
+                txo0(k)=2*K*time(n).landao/x^2;         % transmsibility factor at i-1/2 by upstreaming selection for landao 
+                txw1(k)=K*time(n+1).landaw/x^2;
+                txw0(k)=2*K*time(n).landaw/x^2;
+             end
+                 
+           
+        elseif (1<k)&&(k<7)
+            if time(n).p > time(n+1).p
+           
+               txo1(k)=K*time(n).landao/x^2;                     
+               txw1(k)=K*time(n).landaw/x^2;
+            else 
+               txo1(k)=K*time(n+1).landao/x^2;                     
+               txw1(k)=K*time(n+1).landaw/x^2;
+            end 
+            if time(n-1).p >= time(n).p
+                
+               txo0(k)=K*time(n-1).landao/x^2;                        
+               txw0(k)=K*time(n-1).landaw/x^2;   
+            else 
+               txo0(k)=K*time(n).landao/x^2;                        
+               txw0(k)=K*time(n).landaw/x^2;
+            end
+                                    
+        elseif k==7
+            if time(n).p > time(n+1).p
+                
+               txo1(k)=K*time(n).landao/x^2;
+               txw1(k)=K*time(n).landaw/x^2;
+            else
+               txo1(k)=K*time(n+1).landao/x^2;
+               txw1(k)=K*time(n+1).landaw/x^2;
+            end
+            
+            if time(n-1).p >= time(n).p
+               
+               txo0(k)=K*time(n-1).landao/x^2;
+               txw0(k)=K*time(n-1).landaw/x^2;
+            else
+               txo0(k)=K*time(n).landao/x^2;
+               txw0(k)=K*time(n).landaw/x^2;
+            end
+     
+        elseif (k>7)&&(k<=9)
+                if time(n).p > time(n+1).p
+                txo1(k)=K*time(n).landao/x^2;
+                txw1(k)=K*time(n).landaw/x^2;
+                else 
+                txo1(k)=K*time(n+1).landao/x^2;
+                txw1(k)=K*time(n+1).landaw/x^2;
+                end
+                
+                if time(n-1).p >= time(n).p
+                txw0(k)=K*time(n-1).landaw/x^2;
+                txo0(k)=K*time(n-1).landao/x^2;
+                else
+                txw0(k)=K*time(n).landaw/x^2;
+                txo0(k)=K*time(n).landao/x^2;
+                end
+        else
+               if time(n-1).p >= time(n).p
+               txo1(k)=2*K*time(n).landao/x^2;
+               txw1(k)=2*K*time(n).landaw/x^2;
+               txw0(k)=K*time(n-1).landaw/x^2;
+               txo0(k)=K*time(n-1).landao/x^2;
+               else
+               txo1(k)=2*K*time(n).landao/x^2;
+               txw1(k)=2*K*time(n).landaw/x^2;
+               txw0(k)=K*time(n).landaw/x^2;
+               txo0(k)=K*time(n).landao/x^2;
+               end
+                   
+            end
+        
+           cswo(k)=-fi/(B*delta);
+           csww(k)=(fi/(B*delta))-time(n).dpc*(fi*time(n).sw/(B*delta));  %the fluid and matrix compersibeality assumed 1 as given 
+           cpow(k)=fi*time(n).sw/(delta*B);
+           cpoo(k)=fi*(1-time(n).sw)/(delta*B);
+           alfa=-cswo(k)/csww(k);
+               
+           a(k)=(txo0(k)+alfa*txw0(k));
+           b(k)=-(txo1(k)+txo0(k)+cpoo(k))-(alfa*(txw1(k)+txw0(k)+cpow(k)));
+           c(k)=(txo1(k)+alfa*txw1(k));
+           if k==1
+               d(k)=-(cpoo(k)+alfa*cpow(k))*time(n).p+alfa*qw+(alfa*(txw1(k)*(time(n+1).pc-time(n).pc)+txw0(k)*(0.9-time(n).pc)))-(txo0(k)+alfa*txw0(k))*pl;
+           elseif k==2
+               d(k)=-(cpoo(k)+alfa*cpow(k))*time(n).p+(alfa*txw1(k)*(time(n+1).pc-time(n).pc))+ (alfa*txw0(k)*(time(n-1).pc-time(n).pc));
+           elseif k==3
+                d(k)=-(cpoo(k)+alfa*cpow(k))*time(n).p+(alfa*txw1(k)*(time(n+1).pc-time(n).pc))+ (alfa*txw0(k)*(time(n-1).pc-time(n).pc));
+           elseif k==4
+                d(k)=-(cpoo(k)+alfa*cpow(k))*time(n).p+(alfa*txw1(k)*(time(n+1).pc-time(n).pc))+ (alfa*txw0(k)*(time(n-1).pc-time(n).pc));
+           elseif k==5
+                d(k)=-(cpoo(k)+alfa*cpow(k))*time(n).p+(alfa*txw1(k)*(time(n+1).pc-time(n).pc))+ (alfa*txw0(k)*(time(n-1).pc-time(n).pc));
+           elseif k==6
+                d(k)=-(cpoo(k)+alfa*cpow(k))*time(n).p+(alfa*txw1(k)*(time(n+1).pc-time(n).pc))+ (alfa*txw0(k)*(time(n-1).pc-time(n).pc));     
+           elseif k==7
+                d(k)=-(cpoo(k)+alfa*cpow(k))*time(n).p+qo+(alfa*txw1(k)*(time(n+1).pc-time(n).pc))+(alfa*txw0(k)*(time(n-1).pc-time(n).pc));
+           elseif k==8
+                d(k)=-(cpoo(k)+alfa*cpow(k))*time(n).p+(alfa*txw1(k)*(time(n+1).pc-time(n).pc))+ (alfa*txw0(k)*(time(n-1).pc-time(n).pc));
+           elseif k==9
+                d(k)=-(cpoo(k)+alfa*cpow(k))*time(n).p+(alfa*txw1(k)*(time(n+1).pc-time(n).pc))+ (alfa*txw0(k)*(time(n-1).pc-time(n).pc));
+           else 
+                d(k)=-(cpoo(k)+alfa*cpow(k))*time(n).p + (alfa*(txw0(k)*(time(n-1).pc-time(n).pc)+txw1(k)*(0.9-time(n).pc)))-(txo1(k)+alfa*txw1(k))*pr;
+           end
+                   
+        end
+    m=[b(1) c(1) 0 0 0 0 0 0 0 0 ;a(2) b(2) c(2) 0 0 0 0 0 0 0 ;0 a(3) b(3) c(3) 0 0 0 0 0 0;0 0 a(4) b(4) c(4) 0 0 0 0 0;0 0 0 a(5) b(5) c(5) 0 0 0 0;0 0 0 0 a(6) b(6) c(6) 0 0 0;0 0 0 0 0 a(7) b(7) c(7) 0 0;0 0 0 0 0 0 a(8) b(8) c(8) 0 ;0 0 0 0 0 0 0 a(9) b(9) c(9);0 0 0 0 0 0 0 0 a(10) b(10)];
+    d=[d(1);d(2);d(3);d(4);d(5);d(6);d(7);d(8);d(9);d(10)];
+    r=linsolve(m,d);
+       for j=1:10
+           time(i*10+j).p=r(j);
+       end
+       for j=1:10
+           if j==1
+            time(i*10+j).sw=time((i-1)*10+j).sw +(1/cswo(j))*( txo1(j)*(time(i*10+j+1).p-time(i*10+j).p)+txo0(j)*(pl-time(i*10+j).p)-cpoo(j)*(time(i*10+j).p-time((i-1)*10+j).p));
+           elseif (j>1)&&(j<7)
+            time(i*10+j).sw=time((i-1)*10+j).sw +(1/cswo(j))*( txo1(j)*(time(i*10+j+1).p-time(i*10+j).p)+txo0(j)*(time(i*10+j-1).p-time(i*10+j).p)-cpoo(j)*(time(i*10+j).p-time((i-1)*10+j).p)); 
+           elseif j==7
+            time(i*10+j).sw=time((i-1)*10+j).sw +(1/cswo(j))*( txo1(j)*(time(i*10+j+1).p-time(i*10+j).p)+txo0(j)*(time(i*10+j-1).p-time(i*10+j).p)-qo-cpoo(j)*(time(i*10+j).p-time((i-1)*10+j).p));
+           elseif (j>7)&&(j<10)
+            time(i*10+j).sw=time((i-1)*10+j).sw +(1/cswo(j))*( txo1(j)*(time(i*10+j+1).p-time(i*10+j).p)+txo0(j)*(time(i*10+j-1).p-time(i*10+j).p)-cpoo(j)*(time(i*10+j).p-time((i-1)*10+j).p)); 
+           else
+            time(i*10+j).sw=time((i-1)*10+j).sw +(1/cswo(j))*(txo0(j)*(time(i*10+j-1).p-time(i*10+j).p)+txo1(j)*(pr-time(i*10+j).p)-cpoo(j)*(time(i*10+j).p-time((i-1)*10+j).p)); 
+           end
+       end
+       for j=1:10
+           if time(i*10+j).sw<=0.16
+               time(i*10+j).pc= ((0.16-time(i*10+j).sw)/0.16)*300+((time(i*10+j).sw-0.01)/0.16)*0.9;
+               time(i*10+j).landao=1;
+               time(i*10+j).landaw=0;
+               time(i*10+j).dpc=((0.16-time(i*10+j).sw)/0.16)*(-10)+((time(i*10+j).sw-0.01)/0.16)*(-5);
+           elseif (time(i*10+j).sw > 0.16)&&(time(i*10+j).sw <= 0.2)
+               time(i*10+j).pc=((0.2-time(i*10+j).sw)/0.04)*0.9+((time(i*10+j).sw-0.16)/0.04)*0.7;
+               time(i*10+j).landao=((0.2-time(i*10+j).sw)/0.04)*1+((time(i*10+j).sw-0.16)/0.04)*0.7;
+               time(i*10+j).landaw=((0.2-time(i*10+j).sw)/0.04)*0+((time(i*10+j).sw-0.16)/0.04)*0.01;
+               time(i*10+j).dpc=((0.2-time(i*10+j).sw)/0.04)*(-5)+((time(i*10+j).sw-0.16)/0.04)*(-2);
+           elseif (time(i*10+j).sw > 0.2)&&(time(i*10+j).sw <=0.3)
+                time(i*10+j).pc=((0.3-time(i*10+j).sw)/0.1)*0.7+((time(i*10+j).sw-0.2)/0.1)*0.5;
+                time(i*10+j).landao=((0.3-time(i*10+j).sw)/0.1)*0.7+((time(i*10+j).sw-0.2)/0.1)*0.325;
+                time(i*10+j).landaw=((0.3-time(i*10+j).sw)/0.1)*0.01+((time(i*10+j).sw-0.2)/0.1)*0.035;
+                time(i*10+j).dpc=((0.3-time(i*10+j).sw)/0.1)*(-2)+((time(i*10+j).sw-0.2)/0.1)*(-1);
+           elseif (time(i*10+j).sw > 0.3)&&(time(i*10+j).sw <=0.4)
+                time(i*10+j).pc=((0.4-time(i*10+j).sw)/0.1)*0.5+((time(i*10+j).sw-0.3)/0.1)*0.4;
+                time(i*10+j).landao=((0.4-time(i*10+j).sw)/0.1)*0.325+((time(i*10+j).sw-0.3)/0.1)*0.140;
+                time(i*10+j).landaw=((0.4-time(i*10+j).sw)/0.1)*0.035+((time(i*10+j).sw-0.3)/0.1)*0.06;
+                time(i*10+j).dpc=((0.4-time(i*10+j).sw)/0.1)*(-1)+((time(i*10+j).sw-0.3)/0.1)*(-1);
+           elseif (time(i*10+j).sw > 0.4)&&(time(i*10+j).sw <=0.5)
+               time(i*10+j).pc=((0.5-time(i*10+j).sw)/0.1)*0.4+((time(i*10+j).sw-0.4)/0.1)*0.3;
+                time(i*10+j).landao=((0.5-time(i*10+j).sw)/0.1)*0.14+((time(i*10+j).sw-0.4)/0.1)*0.045;
+                time(i*10+j).landaw=((0.5-time(i*10+j).sw)/0.1)*0.06+((time(i*10+j).sw-0.4)/0.1)*0.11;
+                time(i*10+j).dpc=((0.5-time(i*10+j).sw)/0.1)*(-1)+((time(i*10+j).sw-0.4)/0.1)*(-0.8);
+           elseif  (time(i*10+j).sw > 0.5)&&(time(i*10+j).sw <=0.6)
+                time(i*10+j).pc=((0.6-time(i*10+j).sw)/0.1)*0.3+((time(i*10+j).sw-0.5)/0.1)*0.22;
+                time(i*10+j).landao=((0.6-time(i*10+j).sw)/0.1)*0.045+((time(i*10+j).sw-0.5)/0.1)*0.031;
+                time(i*10+j).landaw=((0.6-time(i*10+j).sw)/0.1)*0.11+((time(i*10+j).sw-0.5)/0.1)*0.16;
+                time(i*10+j).dpc=((0.6-time(i*10+j).sw)/0.1)*(-0.8)+((time(i*10+j).sw-0.5)/0.1)*(-0.5);
+           elseif  (time(i*10+j).sw > 0.6)&&(time(i*10+j).sw <=0.7)
+                time(i*10+j).pc=((0.7-time(i*10+j).sw)/0.1)*0.22+((time(i*10+j).sw-0.6)/0.1)*0.17;
+                time(i*10+j).landao=((0.7-time(i*10+j).sw)/0.1)*0.031+((time(i*10+j).sw-0.6)/0.1)*0.015;
+                time(i*10+j).landaw=((0.7-time(i*10+j).sw)/0.1)*0.16+((time(i*10+j).sw-0.6)/0.1)*0.24;
+                time(i*10+j).dpc=((0.7-time(i*10+j).sw)/0.1)*(-0.5)+((time(i*10+j).sw-0.6)/0.1)*(-37);
+           elseif   (time(i*10+j).sw > 0.6)&&(time(i*10+j).sw <=0.7)
+                time(i*10+j).pc=((0.7-time(i*10+j).sw)/0.1)*0.22+((time(i*10+j).sw-0.6)/0.1)*0.17;
+                time(i*10+j).landao=((0.7-time(i*10+j).sw)/0.1)*0.031+((time(i*10+j).sw-0.6)/0.1)*0.015;
+                time(i*10+j).landaw=((0.7-time(i*10+j).sw)/0.1)*0.16+((time(i*10+j).sw-0.6)/0.1)*0.24;
+                time(i*10+j).dpc=((0.7-time(i*10+j).sw)/0.1)*(-0.5)+((time(i*10+j).sw-0.6)/0.1)*(-37);
+           elseif    (time(i*10+j).sw > 0.7)&&(time(i*10+j).sw <=0.8)
+                time(i*10+j).pc=((0.8-time(i*10+j).sw)/0.1)*0.17+((time(i*10+j).sw-0.7)/0.1)*(-0.2);
+                time(i*10+j).landao=((0.8-time(i*10+j).sw)/0.1)*0.15+((time(i*10+j).sw-0.7)/0.1)*(0);
+                time(i*10+j).landaw=((0.8-time(i*10+j).sw)/0.1)*0.24+((time(i*10+j).sw-0.7)/0.1)*0.42;
+                time(i*10+j).dpc=((0.8-time(i*10+j).sw)/0.1)*(-37)+((time(i*10+j).sw-0.7)/0.1)*-37;
+           else
+                time(i*10+j).pc=0.-2;
+                time(i*10+j).landao=0;
+                time(i*10+j).landaw=0.42;
+                time(i*10+j).dpc=-0.1;
+           end
+            
+       end
+end
+  figure;
+   XX=[1 2 3 4 5 6 7 8 9 10 ];
+  figure(1);
+  y=[time(591:600).p];
+  plot(XX,y);
+  title('pressure distribution  after 60 day');xlabel('Number of Grid');ylabel('p');  
+  figure(2);
+   y=[time(1191:1200).p];
+   plot(XX,y);
+   title('pressure distribution after 120 day');xlabel('Number of Grid');ylabel('p');
+  figure(3);
+    y=[time(1791:1800).p];
+    plot(XX,y);
+    title('pressure distribution after 180 day');xlabel('Number of Grid');ylabel('p'); 
+  figure(4);
+    y=[time(2391:2400).p];
+    plot(XX,y);
+    title('pressure distribution after 240 day');xlabel('Number of Grid');ylabel('p'); 
+   figure(5);
+    y=[time(2991:3000).p];
+    plot(XX,y);
+    title('pressure distribution after 300 day');xlabel('Number of Grid');ylabel('p');
+    figure(6);
+     y=[time(591:600).sw];
+     plot(XX,y);
+     title('saturation distribution  after 60 day');xlabel('Number of Grid');ylabel('sw');
+    figure(7);
+     y=[time(1191:1200).sw];
+     plot(XX,y);
+     title('saturation distribution  after 120 day');xlabel('Number of Grid');ylabel('sw');
+    figure(8);
+     y=[time(1791:1800).sw];
+     plot(XX,y);
+     title('saturation distribution  after 180 day');xlabel('Number of Grid');ylabel('sw');
+     figure(9);
+     y=[time(2391:2400).sw];
+     plot(XX,y);
+     title('saturation distribution  after 240 day');xlabel('Number of Grid');ylabel('sw'); 
+     figure(10);
+     y=[time(2991:3000).sw];
+     plot(XX,y);
+     title('saturation distribution  after 300 day');xlabel('Number of Grid');ylabel('sw');    
+    
